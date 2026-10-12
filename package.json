@@ -1,0 +1,13 @@
+{
+  "name": "streamflix",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "test": "node --check src/worker.js && node --test tests/*.test.mjs",
+    "deploy": "wrangler deploy",
+    "deploy:staging": "wrangler deploy --env staging"
+  },
+  "devDependencies": { "wrangler": "^4.0.0" }
+}

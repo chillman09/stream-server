@@ -1,0 +1,86 @@
+<!doctype html><html lang="en"><head><title>Dashboard · StreamFlix</title><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex">
+<script src="https://cdn.tailwindcss.com"></script>
+<script>tailwind.config={theme:{extend:{colors:{brand:"#E50914",ink:"#141414"},fontFamily:{display:["\"Bebas Neue\"","Impact","sans-serif"],sans:["Inter","system-ui","sans-serif"]}}}}</script>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/styles.css"></head>
+<body class="bg-ink text-white font-sans min-h-screen">
+<header class="flex items-center gap-4 px-4 md:px-10 h-16 border-b border-white/10">
+  <a href="/" class="font-display text-brand text-3xl tracking-wide">STREAMFLIX</a><span class="text-zinc-400 text-sm">Catalog</span>
+  <button id="out" class="ml-auto text-sm text-zinc-300 hover:text-white">Sign out</button>
+</header>
+<main class="px-4 md:px-10 py-6 max-w-6xl mx-auto">
+  <div class="flex flex-wrap gap-3 mb-4">
+    <input id="q" type="search" placeholder="Search by title, genre or category" class="flex-1 min-w-[220px] bg-zinc-800 rounded px-3 py-2.5 outline-none focus:ring-2 ring-brand" aria-label="Search titles">
+    <button id="add" class="btn bg-brand hover:bg-red-700 font-semibold px-5 py-2.5 rounded">Add title</button>
+  </div>
+  <div class="overflow-x-auto border border-white/10 rounded-lg">
+    <table class="w-full text-sm"><thead class="bg-white/5 text-left text-zinc-400"><tr>
+      <th class="p-3">Title</th><th class="p-3">Category</th><th class="p-3">Year</th><th class="p-3">Hero</th><th class="p-3 text-right">Actions</th></tr></thead>
+    <tbody id="tb"></tbody></table>
+  </div>
+  <p id="empty" class="hidden text-zinc-400 py-10 text-center">No titles match. Add one to get started.</p>
+</main>
+
+<dialog id="dlg" class="bg-[#181818] text-white rounded-lg p-0 w-[min(640px,94vw)] backdrop:bg-black/70">
+  <form id="form" method="dialog" class="p-6 grid grid-cols-2 gap-3">
+    <h2 id="dt" class="col-span-2 text-xl font-semibold"></h2>
+    <input type="hidden" name="id">
+    <label class="col-span-2 text-sm text-zinc-300">Title<input name="title" required class="fld"></label>
+    <label class="text-sm text-zinc-300">Category<input name="category" placeholder="Trending Now" class="fld"></label>
+    <label class="text-sm text-zinc-300">Release year<input name="year" type="number" min="1900" max="2100" class="fld"></label>
+    <label class="text-sm text-zinc-300">Maturity rating<input name="maturity" placeholder="PG-13" class="fld"></label>
+    <label class="text-sm text-zinc-300">Quality<select name="quality" class="fld"><option>HD</option><option>4K</option></select></label>
+    <label class="col-span-2 text-sm text-zinc-300">Genres (comma separated)<input name="genres" class="fld"></label>
+    <label class="col-span-2 text-sm text-zinc-300">Description<textarea name="description" rows="3" class="fld"></textarea></label>
+    <label class="col-span-2 text-sm text-zinc-300">Poster image URL<input name="poster" class="fld"></label>
+    <label class="col-span-2 text-sm text-zinc-300">Backdrop image URL<input name="backdrop" class="fld"></label>
+    <label class="col-span-2 text-sm text-zinc-300">Video URL (.mp4, .m3u8 or /stream/your-file.mp4)<input name="videoUrl" required class="fld"></label>
+    <label class="col-span-2 text-sm text-zinc-300">Trailer URL (optional, plays in the hero banner)<input name="trailerUrl" class="fld"></label>
+    <label class="col-span-2 flex items-center gap-2 text-sm"><input type="checkbox" name="featured" class="accent-red-600"> Feature in the hero banner</label>
+    <p id="ferr" role="alert" class="col-span-2 text-sm text-brand"></p>
+    <div class="col-span-2 flex justify-end gap-3"><button type="button" id="cancel" class="px-4 py-2 rounded bg-zinc-700 hover:bg-zinc-600">Cancel</button><button class="btn px-5 py-2 rounded bg-brand hover:bg-red-700 font-semibold">Save</button></div>
+  </form>
+</dialog>
+<style>.fld{display:block;width:100%;margin-top:.25rem;background:#2b2b2b;border-radius:.25rem;padding:.55rem .75rem;color:#fff;outline:none}.fld:focus{box-shadow:0 0 0 2px #E50914}</style>
+
+<script>
+const $=s=>document.querySelector(s); let items=[];
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+async function api(path,opt={}){
+  const r=await fetch(path,{...opt,headers:{'Content-Type':'application/json'},body:opt.body&&JSON.stringify(opt.body)});
+  if(r.status===401){location.href='/admin/login';throw 0}
+  const d=await r.json().catch(()=>({})); if(!r.ok) throw new Error(d.error||'Request failed'); return d;
+}
+async function refresh(){items=await api('/api/admin/media');draw()}
+function draw(){
+  const q=$('#q').value.toLowerCase().trim();
+  const list=items.filter(m=>!q||[m.title,m.category,...(m.genres||[])].join(' ').toLowerCase().includes(q));
+  $('#empty').classList.toggle('hidden',list.length>0);
+  $('#tb').innerHTML=list.map(m=>`<tr class="border-t border-white/10 hover:bg-white/5">
+    <td class="p-3 font-medium">${esc(m.title)}</td><td class="p-3 text-zinc-300">${esc(m.category)}</td><td class="p-3 text-zinc-300">${esc(m.year)}</td>
+    <td class="p-3"><button data-feat="${esc(m.id)}" class="px-2 py-1 rounded text-xs ${m.featured?'bg-brand':'bg-zinc-700 hover:bg-zinc-600'}">${m.featured?'Featured':'Feature'}</button></td>
+    <td class="p-3 text-right space-x-3"><button data-edit="${esc(m.id)}" class="text-zinc-300 hover:text-white">Edit</button><button data-del="${esc(m.id)}" class="text-brand hover:underline">Delete</button></td></tr>`).join('');
+}
+function openForm(m){
+  const f=$('#form'); f.reset(); $('#ferr').textContent=''; $('#dt').textContent=m?'Edit title':'Add title';
+  const d=m||{quality:'HD',maturity:'PG-13',year:new Date().getFullYear()};
+  for(const [k,v] of Object.entries(d)){const el=f.elements[k]; if(!el)continue; if(el.type==='checkbox')el.checked=!!v; else el.value=Array.isArray(v)?v.join(', '):v??''}
+  $('#dlg').showModal();
+}
+$('#form').addEventListener('submit',async e=>{
+  const f=e.target,data=Object.fromEntries(new FormData(f)); data.featured=f.elements.featured.checked; const id=data.id; delete data.id;
+  try{await api(id?`/api/admin/media/${id}`:'/api/admin/media',{method:id?'PUT':'POST',body:data}); $('#dlg').close(); await refresh()}
+  catch(err){e.preventDefault(); $('#ferr').textContent=err.message}
+});
+$('#cancel').onclick=()=>$('#dlg').close();
+$('#add').onclick=()=>openForm();
+$('#q').addEventListener('input',draw);
+$('#out').onclick=async()=>{await fetch('/api/admin/logout',{method:'POST'});location.href='/admin/login'};
+$('#tb').addEventListener('click',async e=>{
+  const t=e.target, id=t.dataset.edit||t.dataset.del||t.dataset.feat; if(!id)return; const m=items.find(x=>x.id===id);
+  if(t.dataset.edit) openForm(m);
+  else if(t.dataset.feat) {await api(`/api/admin/media/${id}`,{method:'PUT',body:{featured:!m.featured}});await refresh()}
+  else if(confirm(`Delete "${m.title}"? This can't be undone.`)) {await api(`/api/admin/media/${id}`,{method:'DELETE'});await refresh()}
+});
+refresh();
+</script></body></html>
