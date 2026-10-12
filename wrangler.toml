@@ -14,7 +14,7 @@ ALLOWED_ORIGIN = ""          # set only if the frontend is hosted on another ori
 # Catalog + metadata. Create with: npx wrangler kv namespace create MEDIA_KV
 [[kv_namespaces]]
 binding = "MEDIA_KV"
-id = "REPLACE_WITH_KV_NAMESPACE_ID"
+id = "f4879c300d7d45f18fc9e27d1d587fd0"
 
 # Optional: your own video files, served at /stream/<key> with range requests.
 # Create with: npx wrangler r2 bucket create streamflix-media
