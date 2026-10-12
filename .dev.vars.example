@@ -1,0 +1,3 @@
+# Copy to .dev.vars (git-ignored) for `wrangler dev`
+ADMIN_PASSWORD=change-me
+JWT_SECRET=a-long-random-string
